@@ -17,16 +17,13 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 16  # Попробуйте другую версию Node.js
+          node-version: 16 
 
       - name: Install dependencies
         run: npm install
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libx11-dev libxcomposite-dev libxdamage-dev libgdk-pixbuf2.0-dev libatk-bridge2.0-dev libatk1.0-dev libcups2-dev libxrandr-dev libgbm-dev
-
-      - name: Install Playwright globally
-        run: npm install -g playwright  # Устанавливаем Playwright глобально
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
