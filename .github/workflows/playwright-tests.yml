@@ -22,16 +22,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Clear npm cache
-        run: npm cache clean --force
-
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libx11-dev libxcomposite-dev libxdamage-dev libgdk-pixbuf2.0-dev libatk-bridge2.0-dev libatk1.0-dev libcups2-dev libxrandr-dev libgbm-dev
 
       - name: Install Playwright Browsers
-        run: |
-          sudo chmod +x $(npm bin)/playwright
-          npx playwright install --with-deps
+        run: npx playwright install --with-deps
 
       - name: Run Playwright tests
         run: npx playwright test
