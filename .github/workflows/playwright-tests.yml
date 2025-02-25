@@ -19,11 +19,14 @@ jobs:
         with:
           node-version: 16 
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install Yarn
+        run: npm install -g yarn
 
-      - name: Install Playwright
-        run: npm install playwright
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Install Sucrase
+        run: yarn add sucrase --dev
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libx11-dev libxcomposite-dev libxdamage-dev libgdk-pixbuf2.0-dev libatk-bridge2.0-dev libatk1.0-dev libcups2-dev libxrandr-dev libgbm-dev
@@ -31,16 +34,8 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      - name: Fix Playwright permissions
-        run: sudo chmod +x $(which npx) $(which playwright) || true
-
       - name: Run Playwright tests
         run: npx playwright test
 
       - name: Upload Playwright test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
+        uses: actions/upload-art
