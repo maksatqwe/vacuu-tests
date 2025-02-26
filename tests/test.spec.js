@@ -6,7 +6,7 @@ let errors = [];
 test.describe('Тестирование лендинга Vacuu', () => {
 
     test.beforeEach(async ({ page }) => {
-        await page.goto('https://vacuu.example.com'); // Замени на реальный URL
+        await page.goto('https://polis812.github.io/vacuu/'); // Замени на реальный URL
     });
 
     test('1. Страница загружается без ошибок', async ({ page }) => {
