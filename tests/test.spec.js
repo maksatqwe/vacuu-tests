@@ -66,8 +66,14 @@ test.describe('Тестирование лендинга Vacuu', () => {
     test('5. Проверка мобильной версии', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 812 });
         await page.waitForTimeout(1000); // Подождем перестроение
+
+        const path = 'test-results';
+        if (!fs.existsSync(path)) {
+            fs.mkdirSync(path, { recursive: true });
+        }
+
         const screenshot = await page.screenshot();
-        fs.writeFileSync('test-screenshot.png', screenshot);
+        fs.writeFileSync(`${path}/test-screenshot.png`, screenshot);
     });
 
     test('6. Проверка наличия ошибок в консоли', async ({ page }) => {
@@ -86,7 +92,7 @@ test.describe('Тестирование лендинга Vacuu', () => {
     });
 
     test.afterAll(async () => {
-        fs.writeFileSync('test-report.json', JSON.stringify(errors, null, 2));
+        fs.writeFileSync('test-results/test-report.json', JSON.stringify(errors, null, 2));
     });
 
 });
