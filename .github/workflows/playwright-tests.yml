@@ -11,18 +11,21 @@ jobs:
 
       - name: Install dependencies
         run: yarn install
-      
-      - name: Run Playwright tests
-        run: npx playwright test || true # Чтобы GitHub Actions не падал при ошибках
 
-      - name: Upload test results
+      - name: Run Playwright tests
+        continue-on-error: true # Позволяет тестам завершиться, но не прерывает workflow
+        run: npx playwright test
+
+      - name: Ensure test-results directory exists
+        run: mkdir -p test-results
+
+      - name: Move reports to test-results
+        run: |
+          mv test-report.json test-results/ || true
+          mv test-screenshot.png test-results/ || true
+
+      - name: Upload all test results
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: test-report.json
-          
-      - name: Upload screenshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobile-screenshot
-          path: test-screenshot.png
+          path: test-results/
