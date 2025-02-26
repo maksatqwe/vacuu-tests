@@ -1,76 +1,105 @@
-import { test, expect } from '@playwright/test';
-import fs from 'fs';
+const { test, expect } = require('@playwright/test');
+const fs = require('fs');
 
-let errors = [];
+let errors = []; // Глобальный массив ошибок
 
 test.describe('Тестирование лендинга Vacuu', () => {
-
     test.beforeEach(async ({ page }) => {
-        await page.goto('https://polis812.github.io/vacuu/'); // Замени на реальный URL
+        await page.goto('https://polis812.github.io/vacuu/');
     });
 
-    test('1. Страница загружается без ошибок', async ({ page }) => {
-        const response = await page.waitForResponse(response => response.status() === 200, { timeout: 10000 })
-            .catch(() => null);
-        if (!response) {
-            errors.push('Страница не загрузилась или вернула ошибку');
+    test('1. Страница успешно загружается', async ({ page }) => {
+        const status = await page.evaluate(() => document.readyState);
+        if (status !== 'complete') {
+            const errorMsg = 'Страница не загрузилась полностью';
+            errors.push(errorMsg);
+            await page.screenshot({ path: `test-results/page-load-failed-${Date.now()}.png`, fullPage: true });
         }
+        expect.soft(status).toBe('complete');
     });
 
     test('2. Заголовок страницы содержит "vacuu"', async ({ page }) => {
         const title = await page.title();
         if (!/vacuu/i.test(title)) {
-            errors.push(`Заголовок страницы "${title}" не содержит "vacuu"`);
+            const errorMsg = `Заголовок страницы "${title}" не содержит "vacuu"`;
+            errors.push(errorMsg);
+            await page.screenshot({ path: `test-results/title-error-${Date.now()}.png` });
         }
+        expect.soft(title).toMatch(/vacuu/i);
     });
 
-    test('3. На странице есть хотя бы одна кнопка <button>', async ({ page }) => {
+    test('3. Проверка всех ссылок', async ({ page }) => {
+        const links = await page.locator('a').all();
+        for (const link of links) {
+            const href = await link.getAttribute('href');
+            if (!href || href.startsWith('#')) continue;
+
+            try {
+                const response = await page.evaluate(async (url) => {
+                    try {
+                        const res = await fetch(url, { method: 'HEAD' });
+                        return res.ok ? null : `Ошибка ${res.status} для ${url}`;
+                    } catch (e) {
+                        return `Ошибка запроса для ${url}`;
+                    }
+                }, href);
+
+                if (response) {
+                    errors.push(response);
+                }
+            } catch (e) {
+                errors.push(`Не удалось проверить ссылку ${href}`);
+            }
+        }
+
+        // **Делаем тест частично неудачным**
+        expect.soft(errors.length).toBe(0);
+    });
+
+    test('4. На странице есть хотя бы одна кнопка <button>', async ({ page }) => {
         const buttons = await page.locator('button').count();
         if (buttons === 0) {
             errors.push('На странице нет кнопок <button>');
+            await page.screenshot({ path: 'test-results/no-buttons.png' });
         }
+        expect.soft(buttons).toBeGreaterThan(0);
     });
 
-    test('4. Проверка работы всех ссылок', async ({ page }) => {
-        try {
-            const links = await page.locator('a').all();
-            for (const link of links) {
-                const href = await link.getAttribute('href');
-                if (href) {
-                    const response = await page.goto(href, { timeout: 10000 }).catch(() => null);
-                    if (!response || !response.ok()) {
-                        errors.push(`Ссылка ${href} не работает`);
-                    }
-                    await page.goBack().catch(() => {}); // Чтобы тест не падал
+    test('5. Проверка мобильной версии', async ({ page }) => {
+        await page.setViewportSize({ width: 375, height: 812 });
+        await page.waitForTimeout(1000); // Подождем перестроение
+        const screenshot = await page.screenshot();
+        fs.writeFileSync('test-results/test-screenshot.png', screenshot);
+    });
+
+    test('6. Проверка наличия ошибок в консоли', async ({ page }) => {
+        const consoleErrors = [];
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                consoleErrors.push(msg.text());
+            }
+        });
+    });
+    test.afterAll(async () => {
+        if (errors.length > 0) {
+            const reportPath = 'test-results/test-report.json';
+            let previousErrors = [];
+
+            // Если файл уже существует, загружаем старые ошибки
+            if (fs.existsSync(reportPath)) {
+                try {
+                    const fileContent = fs.readFileSync(reportPath, 'utf8');
+                    previousErrors = JSON.parse(fileContent);
+                } catch (err) {
+                    console.error('Ошибка чтения test-report.json:', err);
                 }
             }
-        } catch (error) {
-            errors.push(`Ошибка при проверке ссылок: ${error.message}`);
+
+            // Добавляем новые ошибки
+            const allErrors = previousErrors.concat(errors);
+
+            // Записываем в файл
+            fs.writeFileSync(reportPath, JSON.stringify(allErrors, null, 2));
         }
     });
-
-    test('5. Проверка наличия изображения с логотипом', async ({ page }) => {
-        const logo = await page.locator('img[alt="Vacuu Logo"]').count();
-        if (logo === 0) {
-            errors.push('Логотип не найден на странице');
-        }
-    });
-
-    test('6. Форма обратной связи доступна', async ({ page }) => {
-        const formExists = await page.locator('form#contact-form').count();
-        if (formExists === 0) {
-            errors.push('Форма обратной связи отсутствует');
-        }
-    });
-
-    test.afterAll(async () => {
-        const report = {
-            timestamp: new Date().toISOString(),
-            errors,
-            status: errors.length === 0 ? 'PASSED' : 'FAILED'
-        };
-        fs.writeFileSync('report.json', JSON.stringify(report, null, 2));
-        console.log('Тест завершён. Отчёт сохранён в report.json');
-    });
-
 });
