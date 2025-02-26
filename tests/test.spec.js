@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 
-let errors = []; // Глобальный массив ошибок
+let errors = [];
 
 test.describe('Тестирование лендинга Vacuu', () => {
     test.beforeEach(async ({ page }) => {
@@ -52,7 +52,6 @@ test.describe('Тестирование лендинга Vacuu', () => {
             }
         }
 
-        // **Делаем тест частично неудачным**
         expect.soft(errors.length).toBe(0);
     });
 
@@ -67,7 +66,7 @@ test.describe('Тестирование лендинга Vacuu', () => {
 
     test('5. Проверка мобильной версии', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 812 });
-        await page.waitForTimeout(1000); // Подождем перестроение
+        await page.waitForTimeout(1000); 
         const screenshot = await page.screenshot();
         fs.writeFileSync('test-results/test-screenshot.png', screenshot);
     });
@@ -82,10 +81,9 @@ test.describe('Тестирование лендинга Vacuu', () => {
     });
     test.afterAll(async () => {
         if (errors.length > 0) {
-            const reportPath = 'test-results/test-report.json';
+            const reportPath = 'test-report.json';
             let previousErrors = [];
 
-            // Если файл уже существует, загружаем старые ошибки
             if (fs.existsSync(reportPath)) {
                 try {
                     const fileContent = fs.readFileSync(reportPath, 'utf8');
@@ -95,10 +93,7 @@ test.describe('Тестирование лендинга Vacuu', () => {
                 }
             }
 
-            // Добавляем новые ошибки
             const allErrors = previousErrors.concat(errors);
-
-            // Записываем в файл
             fs.writeFileSync(reportPath, JSON.stringify(allErrors, null, 2));
         }
     });
