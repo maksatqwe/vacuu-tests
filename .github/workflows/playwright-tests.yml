@@ -12,8 +12,11 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
       - name: Run Playwright tests
-        continue-on-error: true # Позволяет тестам завершиться, но не прерывает workflow
+        continue-on-error: true
         run: npx playwright test
 
       - name: Ensure test-results directory exists
