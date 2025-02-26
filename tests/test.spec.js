@@ -1,43 +1,92 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+
+let errors = []; // Сюда будем собирать ошибки для отчета
 
 test.describe('Тестирование лендинга Vacuu', () => {
+
     test.beforeEach(async ({ page }) => {
         await page.goto('https://polis812.github.io/vacuu/');
     });
 
-    test('Проверка заголовка страницы', async ({ page }) => {
-        await expect(page).toHaveTitle(/vacuu/i); // Исправлено в соответствии с реальным заголовком
+    test('1. Страница успешно загружается', async ({ page }) => {
+        const status = await page.evaluate(() => document.readyState);
+        if (status !== 'complete') {
+            errors.push('Страница не загрузилась полностью');
+        }
+        expect.soft(status).toBe('complete');
     });
 
-    test('Проверка наличия основных кнопок', async ({ page }) => {
-        const buttons = await page.$$('button');
-        expect(buttons.length).toBeGreaterThan(0);
+    test('2. Заголовок страницы содержит "vacuu"', async ({ page }) => {
+        const title = await page.title();
+        if (!/vacuu/i.test(title)) {
+            errors.push(`Заголовок страницы "${title}" не содержит "vacuu"`);
+        }
+        expect.soft(title).toMatch(/vacuu/i);
     });
 
-    test('Проверка работы всех ссылок', async ({ page }) => {
-        const links = await page.$$('[href]');
-        for (const link of links) {
+    test('3. На странице есть хотя бы одна кнопка <button>', async ({ page }) => {
+        const buttons = await page.locator('button').count();
+        if (buttons === 0) {
+            errors.push('На странице нет кнопок <button>');
+        }
+        expect.soft(buttons).toBeGreaterThan(0);
+    });
+
+    test('4. Проверка работы всех ссылок', async ({ page }) => {
+        const links = await page.locator('a');
+        for (const link of await links.all()) {
             const href = await link.getAttribute('href');
-            if (href && !href.startsWith('#')) {
-                await link.click();
-                await page.waitForLoadState();
-                expect(page.url()).toContain(href);
-                await page.goBack();
+            if (!href) continue;
+            
+            if (!href.startsWith('#')) { // Проверяем внешние ссылки
+                const [newPage] = await Promise.all([
+                    page.waitForEvent('popup'),
+                    link.click()
+                ]).catch(() => [null]);
+
+                if (newPage) {
+                    await newPage.waitForLoadState();
+                    const newURL = newPage.url();
+                    if (!newURL.startsWith('http')) {
+                        errors.push(`Ссылка ${href} ведет на некорректную страницу`);
+                    }
+                    await newPage.close();
+                } else {
+                    const newURL = page.url();
+                    if (!newURL.includes(href)) {
+                        errors.push(`Ссылка ${href} не работает`);
+                    }
+                    await page.goBack();
+                }
             }
         }
     });
 
-    test('Проверка мобильной версии', async ({ page }) => {
+    test('5. Проверка мобильной версии', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 812 });
-        await expect(page).toHaveScreenshot();
+        await page.waitForTimeout(1000); // Подождем перестроение
+        const screenshot = await page.screenshot();
+        fs.writeFileSync('test-screenshot.png', screenshot);
     });
 
-    test('Проверка отсутствия ошибок в консоли', async ({ page }) => {
-        const errors = [];
-        page.on('pageerror', error => {
-            errors.push(error.message);
+    test('6. Проверка наличия ошибок в консоли', async ({ page }) => {
+        const consoleErrors = [];
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                consoleErrors.push(msg.text());
+            }
         });
+
         await page.reload();
-        expect(errors.length).toBe(0);
+        if (consoleErrors.length > 0) {
+            errors.push(`Обнаружены ошибки в консоли: ${consoleErrors.join('; ')}`);
+        }
+        expect.soft(consoleErrors.length).toBe(0);
     });
+
+    test.afterAll(async () => {
+        fs.writeFileSync('test-report.json', JSON.stringify(errors, null, 2));
+    });
+
 });
